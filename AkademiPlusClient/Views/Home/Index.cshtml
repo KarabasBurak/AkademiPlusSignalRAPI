@@ -1,0 +1,131 @@
+﻿@{
+    ViewData["Title"] = "Home Page";
+}
+
+<script src="~/lib/microsoft/signalr/dist/browser/signalr.min.js"></script>
+
+@section Scripts
+    {
+    <script>
+        $(document).ready(() => {
+            var connection = new signalR.HubConnectionBuilder().withAutomaticReconnect([1000, 2000, 3000, 6000]).withUrl("https://localhost:44372/MyHub").build();
+            function statusshow() {
+                $("#constatus").text(connection.connectionState);
+            }
+
+            statusshow();
+
+            connection.start().then(() => {
+                statusshow();
+            });
+            $("#btnsave").click(() => {
+                connection.invoke("sendname", $("#txtname").val());
+            });
+            connection.on("receivename", (name) => {
+                console.log(name);
+                $("#namesList").append(`<li class="list-group-item">${name}</li>`);
+            });
+            connection.on("receiveclientcount", (ClientCount) => {
+                $("#clientcount").text(ClientCount);
+            });
+            connection.on("Notify",countText=>{
+                $("#notify").html(`<div class="alert alert-success">${countText}</div>`);
+            });
+            connection.on("Error",(errorText)=>{
+                alert(errorText);
+            });
+            connection.on("receiveNames", (Names) => {
+                $("#namesList").empty();
+                Names.forEach((item, index) => {
+                    $("#namesList").append(`<li class="list-group-item">${item}</li>`);
+                });
+            });
+
+            $("#btnroomname").click(()=>{
+                let name=$("#txtname").val();
+                let roomName=$("input[type=radio]:checked").val();
+                if(roomName==null)
+                {
+                    alert("Lütfen Oda Seçiniz");
+                    return;
+                }
+                connection.invoke("SendNameByGroup",name,roomName);
+            });
+
+            connection.on("receiveMessageByGroup",name,RoomID)=>{
+                let listName;
+                if(RoomID==1)
+                {
+                    listName="adanaRoomList";
+                }
+                else
+                {
+                    listName="ankaraRoomList";
+                }
+                $(`#${listName}`).append(`<li class="list-group-item">${name}</li>`);
+            });
+
+        $("input[type=radio]").change(() => {
+            let value = $(`input[type=radio]:checked`).val();
+            if (value == "Adana") {
+                connection.invoke("AddToGroup", value);
+                connection.invoke("RemoveToGroup", "Ankara");
+            }
+            else {
+                connection.invoke("AddToGroup", value);
+                connection.invoke("RemoveFromGroup", "Adana");
+            }
+        });
+        });
+
+    </script>
+}
+
+<div class="row">
+    <div class="col-md-8 offset-2">
+        <input type="text" class="form-control" id="txtname" />
+        <hr />
+        <button class="btn btn-warning" id="btnsave">İsmi Kaydet</button>
+        <button class="btn btn-primary" id="btnroomname">Odaya Kişi Ekle</button>
+
+        <div class="alert alert-info mt-2">
+            <div>
+                Bağlantı Durumu:<strong id="constatus"></strong>
+                Client Sayısı: <strong id="clientcount"></strong>
+            </div>
+            <div class="clearfix"></div>
+        </div>
+        <div id="notify"></div>
+    </div>
+    <div class="col-md-8 offset-2">
+        <ul class="list-group" id="namesList"></ul>
+    </div>
+</div>
+
+
+<div class="row">
+    <div class="col-md-8 offset-2">
+        <div class="form-check form-check-inline">
+            <input class="form-check-input" type="radio" name="roomGroup" value="Adana" />
+            <label class="form-check-label">Adana Odası</label>
+        </div>
+    </div>
+    <div class="col-md-8 offset-2">
+        <div class="form-check form-check-inline">
+            <input class="form-check-input" type="radio" name="roomGroup" value="Ankara" />
+            <label class="form-check-label">Ankara Odası</label>
+        </div>
+    </div>
+    <div class="col-md-8 offset-2">
+        <div class="row">
+            <div class="col-md-6">
+                <h2>Adana Odası</h2>
+                <ul class="list-group" id="adanaRoomList"></ul>
+            </div>
+            <div class="col-md-6">
+                <h2>Ankara Odası</h2>
+                <ul class="list-group" id="ankaraRoomList"></ul>
+            </div>
+        </div>
+    </div>
+</div>
